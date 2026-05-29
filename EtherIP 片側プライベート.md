@@ -29,7 +29,7 @@ GE1.0 <主ネットワークへL2接続> 172.16.0.2/23
 RT2側の出口IPアドレスに関しては「不定」のため、anyを設定している。
 DDNS等を利用しても良いと思うが、これは出先のホテルとかで適当に使うことを想定しているので、anyとして何でも受け入れるようにしている
 
-IPアドレスはBVI1インタフェースに設定し、 `GE1.0` 及び `Tunnel11.0` へ `bridge-group 1` でブリッジを行う。
+IPアドレスは `BVI1` 仮想インタフェースに設定し、 `GE1.0` 及び `Tunnel11.0` へ `bridge-group 1` でブリッジを行う。
 こちら、GE1.0にIPを設定した場合、 `Tunnel11.0` 側から該当IPアドレスへのアクセスができなくなります。
 
 
@@ -49,8 +49,9 @@ ikev2 profile for-etherip
   local-authentication psk id keyid ROUTER1
   sa-proposal enc aes-gcm-256-16 aes-cbc-256
   sa-proposal integrity sha2-512
-  sa-proposal dh 2048-bit 1024-bit
+  sa-proposal dh 2048-bit
   sa-proposal prf sha2-512
+  ipsec-mode transport
 
 
 ! DHCPの設定
@@ -106,12 +107,16 @@ interface Tunnel11.0
   ikev2 nat-traversal keepalive 20 force
   ikev2 negotiation-direction both
   ikev2 outgoing-interface GigaEthernet0.1
-  ikev2 ipsec-mode transport
   ikev2 peer any authentication psk id keyid ROUTER2
   no shutdown
 ```
 
-IF, CGN出口IPへ任意のDDNSアドレス等を設定する場合、上記の ikev2 peer 行を以下のように書き換えることができます。
+#### if CGN Gateway IP にDDNS等でFQDNを設定する場合
+CGN Gateway IP へ任意のDDNSアドレス等を設定する場合、上記の ikev2 peer 行を以下のように書き換えることができます。
+
+* 注意事項
+    * 同一Gateway IP から複数のトンネルを張る可能性がある場合は、以下の設定はうまく動かない可能性があります。
+    * 同一Gateway IP に複数のDDNSによるFQDNが割り当てられた場合、意図しない挙動をする可能性があります。
 
 ```
 ikev2 peer-fqdn-ipv4 DOMAIN_NAME authentication psk id keyid ROUTER2
@@ -136,8 +141,9 @@ ikev2 profile for-etherip
   local-authentication psk id keyid ROUTER2
   sa-proposal enc aes-gcm-256-16 aes-cbc-256
   sa-proposal integrity sha2-512
-  sa-proposal dh 2048-bit 1024-bit
+  sa-proposal dh 2048-bit
   sa-proposal prf sha2-512
+  ipsec-mode transport
 
 
 ! ISPからDHCPでIPを受け取る設定
@@ -173,7 +179,18 @@ interface Tunnel11.0
   ikev2 ipsec pre-fragment
   ikev2 nat-traversal keepalive 20 force
   ikev2 negotiation-direction both
-  ikev2 ipsec-mode transport
   ikev2 peer-fqdn-ipv4 RT1.EXAMPLE.JP authentication psk id keyid ROUTER1
   no shutdown
 ```
+
+## Tips:
+
+### セキュリティに関して
+共通ですので、こちらをご確認ください。
+
+https://github.com/notoken3331/UNIVERGE-IX-Sample/blob/master/IPSec%20%E7%89%87%E5%81%B4%E3%83%97%E3%83%A9%E3%82%A4%E3%83%99%E3%83%BC%E3%83%88.md#tips
+
+### MTUに関して
+一部の通信に関して、MTUが1500を下回ると動作しないプロトコルが存在します。トンネル経由で何故かうまく行かない場合は多分それなので少し設定を弄る必要があります。
+
+todo: 後で書く

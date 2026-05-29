@@ -1,6 +1,5 @@
 ## 想定構築ネットワーク
 固定IPアドレス `100.200.111.222` には `rt1.example.jp` というドメインが設定されているものとします。
-CGN出口IPアドレスに `rt2.example.jp` というDDNSドメインを設定するものとしています。
 
 トンネル内IPアドレスに関しては /30 で作成しています。
 
@@ -27,6 +26,7 @@ GE1.0 172.16.22.1/24
 ```
 
 ## 設定例
+事前共有鍵に関して、特段 `ikev2 peer any` を設定する場合は20桁以上の強固な鍵を設定することをおすすめします。
 
 ### RT1
 RT2側の出口IPアドレスに関しては「不定」のため、anyを設定している。
@@ -53,7 +53,7 @@ ikev2 profile for-ipsec-ike2
   local-authentication id keyid ROUTER1
   sa-proposal enc aes-gcm-256-16 aes-cbc-256
   sa-proposal integrity sha2-512
-  sa-proposal dh 2048-bit 1024-bit
+  sa-proposal dh 2048-bit
   sa-proposal prf sha2-512
   ipsec-mode tunnel
 
@@ -93,14 +93,24 @@ interface Tunnel11.0
   ip tcp adjust-mss auto
   ikev2 binding for-ipsec-ike2
   ikev2 connect-type auto
-  ikev2 dpd interval 10
   ikev2 ipsec pre-fragment
   ikev2 nat-traversal keepalive 10 force
   ikev2 negotiation-direction responder
   ikev2 outgoing-interface GigaEthernet0.1
-  ikev2 peer-fqdn-ipv4 RT2.EXAMPLE.JP authentication psk id keyid ROUTER2
+  ikev2 peer any authentication psk id keyid ROUTER2
   no shutdown
 
+```
+
+#### if CGN Gateway IP にDDNS等でFQDNを設定する場合
+CGN Gateway IP へ任意のDDNSアドレス等を設定する場合、上記の ikev2 peer 行を以下のように書き換えることができます。が、特段理由がない限りanyを設定することをおすすめします。
+
+* 注意事項
+    * 同一Gateway IP から複数のトンネルを張る可能性がある場合は、以下の設定はうまく動かない可能性があります。
+    * 同一Gateway IP に複数のDDNSによるFQDNが割り当てられた場合、意図しない挙動をする可能性があります。
+
+```
+ikev2 peer-fqdn-ipv4 DOMAIN_NAME authentication psk id keyid ROUTER2
 ```
 
 ### RT2
@@ -126,7 +136,7 @@ ikev2 profile for-ipsec-ike2
   local-authentication id keyid ROUTER2
   sa-proposal enc aes-gcm-256-16 aes-cbc-256
   sa-proposal integrity sha2-512
-  sa-proposal dh 2048-bit 1024-bit
+  sa-proposal dh 2048-bit
   sa-proposal prf sha2-512
   ipsec-mode tunnel
 
@@ -154,7 +164,6 @@ interface Tunnel11.0
   ip tcp adjust-mss auto
   ikev2 binding for-nec-ix
   ikev2 connect-type auto
-  ikev2 dpd interval 10
   ikev2 ipsec pre-fragment
   ikev2 nat-traversal keepalive 10 force
   ikev2 negotiation-direction initiator
@@ -162,11 +171,79 @@ interface Tunnel11.0
   no shutdown
 ```
 
-### Tips
+## Tips
 
-#### トンネルにIPを振りたくない場合
+### セキュリティに関して
+* 事前共有鍵は、特段 `ikev2 peer any` を設定する場合、20桁以上の強固な鍵を設定することをおすすめします。
+* セキュリティ強度に関して、特段インターネットVPNを構築する際は強固な暗号方式を使うことをおすすめします。
+    * 詳細はコマンドリファレンスをご確認ください。
+        https://www.necplatforms.co.jp/dl/ix-nrv/manual/crm/cli/security/cli_ikev2.html#ikev2-child-proposal-enc
+    * 暗号化強度が低い順に以下のとおりとなります。
+        1. null            -- NULL Algorithm
+        1. 3des-cbc        -- Triple DES-CBC
+        2. aes-cbc-128     -- AES-CBC (128 bits)
+        3. aes-cbc-192     -- AES-CBC (192 bits)
+        4. aes-cbc-256     -- AES-CBC (256 bits)
+        5. aes-gcm-128-16  -- AES-GCM (128 bits key with 16 octets ICV)
+        6. aes-gcm-256-16  -- AES-GCM (256 bits key with 16 octets ICV)
+        * IX2105 (EoL済み機種) を利用する場合は、 `aes-gcm-256-16` が利用できませんので `aes-cbc-256` が最大強度となります。
+        * null は暗号化しないという意味です。
+    * 認証アルゴリズムに関しては強度が低い順に以下のとおりです。
+        1. sha1            -- HMAC-SHA1-96
+        2. sha2-256        -- HMAC-SHA2-256-128
+        3. sha2-384        -- HMAC-SHA2-384-192
+        4. sha2-512        -- HMAC-SHA2-512-256
+    * 鍵交換プロトコルに関しては強度が低い順に以下のとおりです。
+        1. 768-bit   -- DH Group 1
+        1. 1024-bit  -- DH Group 2
+        1. 1536-bit  -- DH Group 5
+        1. 2048-bit  -- DH Group 14
+        1. 3072-bit  -- DH Group 15
+        * IX2105 (EoL済み機種) を利用する場合は、 `2048-bit` までの対応となります。
+
+何にも考えず最高強度として設定するなら以下のようになります。
+
+```
+ikev2 profile for-ipsec-ike2
+  child-proposal enc aes-gcm-256-16
+  child-proposal integrity sha2-512
+  sa-proposal enc aes-gcm-256-16
+  sa-proposal integrity sha2-512
+  sa-proposal dh 3072-bit
+  sa-proposal prf sha2-512
+```
+
+IX2105 が含まれる場合は、以下のようにします
+
+```
+ikev2 profile for-ipsec-ike2
+  child-proposal enc aes-gcm-256-16 aes-cbc-256
+  child-proposal integrity sha2-512
+  sa-proposal enc aes-gcm-256-16 aes-cbc-256
+  sa-proposal integrity sha2-512
+  sa-proposal dh 3072-bit 2048-bit
+  sa-proposal prf sha2-512
+```
+
+
+### IPoE 固定IP (v6プラス固定IP, Xpass固定等) での設定
+適時 `GigaEthernet0.1` を `Tunnel0.0` 等に読み替えてください。
+
+```
+interface Tunnel0.0
+  ip napt enable
+  ip napt static Tunnel0.0 udp 500
+  ip napt static Tunnel0.0 50
+  ip napt static Tunnel0.0 udp 4500
+
+interface Tunnel11.0
+  ikev2 outgoing-interface Tunnel0.0
+```
+
+
+### トンネルにIPを振りたくない場合
 トンネル内にIPアドレスを設定しない場合は、以下の通り設定することができる。
-unnumbered 設定で 経路を Tunnel11.0 に設定する
+unnumbered 設定で経路を Tunnel11.0 に設定する
 
 RT1側
 
@@ -185,3 +262,8 @@ ip route 172.16.11.0/24 Tunnel11.0
 interface Tunnel11.0
   ip unnumbered GigaEthernet1.0
 ```
+
+### MTUに関して
+一部の通信に関して、MTUが1500を下回ると動作しないプロトコルが存在します。トンネル経由で何故かうまく行かない場合は多分それなので少し設定を弄る必要があります。
+
+todo: 後で書く
