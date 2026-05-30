@@ -267,3 +267,39 @@ interface Tunnel11.0
 一部の通信に関して、MTUが1500を下回ると動作しないプロトコルが存在します。トンネル経由で何故かうまく行かない場合は多分それなので少し設定を弄る必要があります。
 
 todo: 後で書く
+
+## トラブルシュート
+
+### ping が通らない
+ping を送信する際の送信元に対する経路がない場合、応答が帰ってこないことが多い
+
+特段、以下の場合は CATV事業者からDHCPで受け取ったIPアドレスをソースとして送出してしまっているため、対向ルーターが返送先がデフォルトルートになってしまう。そのため、パケットが迷子になる
+
+そのため、ソースアドレスを指定して ping を送信することを試してみてほしい
+
+1. RT2 src: 10.16.224.3 dst: 10.0.0.1 でパケットを送出
+2. RT1 が1で創出されたパケットを受け取る
+3. RT1 は 10.16.224.3 へのルートが定義されていないため、デフォルトルートに向かってパケットを送出する
+4. RT1 は GigabitEthernet0.1へパケットを送信しているため、 RT2 へ帰りパケットが帰ってこない
+
+```
+RT2 (config)# ping 10.0.0.1
+PING 10.16.224.3 > 10.0.0.1 56 data bytes
+
+--- 10.0.0.1 ping statistics ---
+5 packets transmitted, 0 packets received, 100% packet loss
+RT2 (config)# 
+RT2 (config)# 
+RT2 (config)# ping 10.0.0.1 source 10.0.0.2
+PING 10.0.0.2 > 10.0.0.1 56 data bytes
+64 bytes from 10.0.0.1: icmp_seq=0 ttl=64 time=10.613 ms
+64 bytes from 10.0.0.1: icmp_seq=1 ttl=64 time=10.930 ms
+64 bytes from 10.0.0.1: icmp_seq=2 ttl=64 time=11.149 ms
+64 bytes from 10.0.0.1: icmp_seq=3 ttl=64 time=10.996 ms
+64 bytes from 10.0.0.1: icmp_seq=4 ttl=64 time=10.854 ms
+
+--- 10.0.0.1 ping statistics ---
+5 packets transmitted, 5 packets received, 0% packet loss
+round-trip (ms)  min/avg/max = 10.613/10.908/11.149
+RT2 (config)#
+```

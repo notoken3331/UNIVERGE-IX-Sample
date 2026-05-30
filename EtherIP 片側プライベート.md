@@ -49,7 +49,7 @@ ikev2 profile for-etherip
   local-authentication psk id keyid ROUTER1
   sa-proposal enc aes-gcm-256-16 aes-cbc-256
   sa-proposal integrity sha2-512
-  sa-proposal dh 2048-bit
+  sa-proposal dh 3072-bit 2048-bit
   sa-proposal prf sha2-512
   ipsec-mode transport
 
@@ -104,13 +104,12 @@ interface Tunnel11.0
   ikev2 binding for-etherip
   ikev2 connect-type auto
   ikev2 ipsec pre-fragment
-  ikev2 nat-traversal keepalive 20 force
-  ikev2 negotiation-direction both
   ikev2 outgoing-interface GigaEthernet0.1
   ikev2 peer any authentication psk id keyid ROUTER2
   no shutdown
 ```
 
+<!-- 
 #### if CGN Gateway IP にDDNS等でFQDNを設定する場合
 CGN Gateway IP へ任意のDDNSアドレス等を設定する場合、上記の ikev2 peer 行を以下のように書き換えることができます。
 
@@ -121,6 +120,7 @@ CGN Gateway IP へ任意のDDNSアドレス等を設定する場合、上記の 
 ```
 ikev2 peer-fqdn-ipv4 DOMAIN_NAME authentication psk id keyid ROUTER2
 ```
+-->
 
 ### RT2
 GE0.0 にインターネット提供者からDHCPでプライベートIPアドレスが付与されることを想定している。
@@ -141,7 +141,7 @@ ikev2 profile for-etherip
   local-authentication psk id keyid ROUTER2
   sa-proposal enc aes-gcm-256-16 aes-cbc-256
   sa-proposal integrity sha2-512
-  sa-proposal dh 2048-bit
+  sa-proposal dh 3072-bit 2048-bit
   sa-proposal prf sha2-512
   ipsec-mode transport
 
@@ -177,8 +177,6 @@ interface Tunnel11.0
   ikev2 binding for-etherip
   ikev2 connect-type auto
   ikev2 ipsec pre-fragment
-  ikev2 nat-traversal keepalive 20 force
-  ikev2 negotiation-direction both
   ikev2 peer-fqdn-ipv4 RT1.EXAMPLE.JP authentication psk id keyid ROUTER1
   no shutdown
 ```
