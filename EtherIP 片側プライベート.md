@@ -105,6 +105,7 @@ interface Tunnel11.0
   ikev2 connect-type auto
   ikev2 ipsec pre-fragment
   ikev2 outgoing-interface GigaEthernet0.1
+  ikev2 nat-traversal keepalive 10 force
   ikev2 peer any authentication psk id keyid ROUTER2
   no shutdown
 ```
@@ -177,6 +178,7 @@ interface Tunnel11.0
   ikev2 binding for-etherip
   ikev2 connect-type auto
   ikev2 ipsec pre-fragment
+  ikev2 nat-traversal keepalive 10 force
   ikev2 peer-fqdn-ipv4 RT1.EXAMPLE.JP authentication psk id keyid ROUTER1
   no shutdown
 ```
