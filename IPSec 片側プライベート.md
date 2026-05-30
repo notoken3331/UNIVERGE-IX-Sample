@@ -32,6 +32,7 @@ GE1.0 172.16.22.1/24
 RT2側の出口IPアドレスに関しては「不定」のため、anyを設定している。
 DDNS等を利用しても良いと思うが、これは出先のホテルとかで適当に使うことを想定しているので、anyとして何でも受け入れるようにしている
 
+`ikev2 nat-traversal keepalive 10 force` の設定を行わないと、トンネルは上がるけど何故かパケットが通らないという現象に見舞われる場合がある
 
 ```
 ! 事前共有鍵の定義
@@ -53,7 +54,7 @@ ikev2 profile for-ipsec-ike2
   local-authentication id keyid ROUTER1
   sa-proposal enc aes-gcm-256-16 aes-cbc-256
   sa-proposal integrity sha2-512
-  sa-proposal dh 2048-bit
+  sa-proposal dh 3072-bit 2048-bit
   sa-proposal prf sha2-512
   ipsec-mode tunnel
 
@@ -94,13 +95,13 @@ interface Tunnel11.0
   ikev2 binding for-ipsec-ike2
   ikev2 connect-type auto
   ikev2 ipsec pre-fragment
-  ikev2 nat-traversal keepalive 10 force
-  ikev2 negotiation-direction responder
   ikev2 outgoing-interface GigaEthernet0.1
+  ikev2 nat-traversal keepalive 10 force
   ikev2 peer any authentication psk id keyid ROUTER2
   no shutdown
 
 ```
+
 
 #### if CGN Gateway IP にDDNS等でFQDNを設定する場合
 CGN Gateway IP へ任意のDDNSアドレス等を設定する場合、上記の ikev2 peer 行を以下のように書き換えることができます。が、特段理由がない限りanyを設定することをおすすめします。
@@ -136,7 +137,7 @@ ikev2 profile for-ipsec-ike2
   local-authentication id keyid ROUTER2
   sa-proposal enc aes-gcm-256-16 aes-cbc-256
   sa-proposal integrity sha2-512
-  sa-proposal dh 2048-bit
+  sa-proposal dh 3072-bit 2048-bit
   sa-proposal prf sha2-512
   ipsec-mode tunnel
 
@@ -166,7 +167,6 @@ interface Tunnel11.0
   ikev2 connect-type auto
   ikev2 ipsec pre-fragment
   ikev2 nat-traversal keepalive 10 force
-  ikev2 negotiation-direction initiator
   ikev2 peer-fqdn-ipv4 RT1.EXAMPLE.JP authentication psk id keyid ROUTER1
   no shutdown
 ```
