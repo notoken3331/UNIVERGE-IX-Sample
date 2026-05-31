@@ -79,7 +79,7 @@ interface GigaEthernet0.1
   no shutdown
 
 
-! 物理インターフェースにはIPを割り当てない
+! Local側物理インターフェース
 interface GigaEthernet1.0
   ip address 172.16.11.1/24
   no shutdown
@@ -150,7 +150,7 @@ interface GigaEthernet0.0
   no shutdown
 
 
-! 物理インターフェースにはIPを割り当てない
+! Local側物理インターフェース
 interface GigaEthernet1.0
   ip address 172.16.22.1/24
   no shutdown
